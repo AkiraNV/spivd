@@ -110,3 +110,5 @@ def start_game():
         pygame.display.flip()
 
     pygame.quit()
+
+start_game()

@@ -207,6 +207,8 @@ while running:
                 else:  # NEW: Handle clicks on other screens (Back button)
                     if back_button_rect and back_button_rect.collidepoint(mouse_pos):
                         current_screen = "menu"
+    if not pygame.display.get_init():
+        break
 
     # --- Drawing ---
     if current_screen == "menu":  # NEW: Draw menu only if on menu screen
