@@ -1,6 +1,6 @@
 # main.py
 import pygame, classes
-from classes import Ship, Enemy
+from classes import Ship, Enemy, Boss
 
 
 def start_game():
@@ -10,7 +10,7 @@ def start_game():
 
     # Create entities
     player: Ship = Ship(classes.state())
-    enemies = [Enemy(100, 10, 10, "neutral")]
+    enemies = [Boss(200, 10, 1000)]
     all_sprites = pygame.sprite.Group(player, *enemies)
     ship_projectiles = pygame.sprite.Group()
     enemy_proj = pygame.sprite.Group()

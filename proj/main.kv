@@ -1,0 +1,161 @@
+#:import FadeTransition kivy.uix.screenmanager.FadeTransition
+
+ScreenManager:
+    transition: FadeTransition()
+    MenuScreen:
+    HighScoreScreen:
+    SpeedScreen:
+    ThanksScreen:
+    LanguageScreen:
+    ScrollingScreen:
+    GameScreen:
+
+<MenuScreen>:
+    name: "menu"
+    FloatLayout:
+        canvas.before:
+            Rectangle:
+                pos: self.pos
+                size: self.size
+                source: "bg2.jpg"
+
+        GridLayout:
+            cols: 1
+            size_hint: 0.5, None
+            height: self.minimum_height
+            pos_hint: {"center_x": 0.5, "y": 0.1}
+            spacing: dp(10)
+
+            Button:
+                text: "Chơi"
+                font_name: "Orbitron"
+                font_size: '20sp'
+                on_release: app.root.current = "game"
+
+            Button:
+                text: "Điểm cao nhất"
+                font_name: "Orbitron"
+                on_release: app.root.current = "highscore"
+
+            Button:
+                text: "Tốc độ"
+                font_name: "Orbitron"
+                on_release: app.root.current = "speed"
+
+            Button:
+                text: "Lời cảm ơn"
+                font_name: "Orbitron"
+                on_release: app.root.current = "thanks"
+
+            Button:
+                text: "Ngôn ngữ"
+                font_name: "Orbitron"
+                on_release: app.root.current = "language"
+
+            Button:
+                text: "Scrolling"
+                font_name: "Orbitron"
+                on_release: app.root.current = "scrolling"
+
+            Button:
+                text: "Thoát"
+                font_name: "Orbitron"
+                on_release: app.stop()
+
+<HighScoreScreen>:
+    name: "highscore"
+    BoxLayout:
+        orientation: "vertical"
+        canvas.before:
+            Rectangle:
+                pos: self.pos
+                size: self.size
+                source: "bg2.jpg"
+        Label:
+            text: "Điểm cao nhất\nPlayer1: 1000\nPlayer2: 800\nPlayer3: 600"
+            font_name: "Orbitron"
+            font_size: '20sp'
+        Button:
+            text: "Quay lại"
+            font_name: "Orbitron"
+            on_release: app.root.current = "menu"
+
+<SpeedScreen>:
+    name: "speed"
+    BoxLayout:
+        orientation: "vertical"
+        canvas.before:
+            Rectangle:
+                pos: self.pos
+                size: self.size
+                source: "bg2.jpg"
+        Label:
+            text: "Tốc độ: 60 FPS"
+            font_name: "Orbitron"
+        Button:
+            text: "Quay lại"
+            on_release: app.root.current = "menu"
+
+<ThanksScreen>:
+    name: "thanks"
+    BoxLayout:
+        orientation: "vertical"
+        canvas.before:
+            Rectangle:
+                pos: self.pos
+                size: self.size
+                source: "bg2.jpg"
+        Label:
+            text: "Cảm ơn bạn đã chơi!"
+            font_name: "Orbitron"
+        Button:
+            text: "Quay lại"
+            on_release: app.root.current = "menu"
+
+<LanguageScreen>:
+    name: "language"
+    BoxLayout:
+        orientation: "vertical"
+        canvas.before:
+            Rectangle:
+                pos: self.pos
+                size: self.size
+                source: "bg2.jpg"
+        Label:
+            text: "Ngôn ngữ: Tiếng Việt"
+            font_name: "Orbitron"
+        Button:
+            text: "Quay lại"
+            on_release: app.root.current = "menu"
+
+<ScrollingScreen>:
+    name: "scrolling"
+    BoxLayout:
+        orientation: "vertical"
+        canvas.before:
+            Rectangle:
+                pos: self.pos
+                size: self.size
+                source: "bg2.jpg"
+        Label:
+            text: "Scrolling: Không gian"
+            font_name: "Orbitron"
+        Button:
+            text: "Quay lại"
+            on_release: app.root.current = "menu"
+
+<GameScreen>:
+    name: "game"
+    BoxLayout:
+        orientation: "vertical"
+        canvas.before:
+            Rectangle:
+                pos: self.pos
+                size: self.size
+                source: "bg2.jpg"
+        Label:
+            text: "Đang chơi trò chơi..."
+            font_name: "Orbitron"
+        Button:
+            text: "Quay lại"
+            on_release: app.root.current = "menu"

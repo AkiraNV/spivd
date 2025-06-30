@@ -145,6 +145,7 @@ class Ship(Entity):
         #Death
         self.dframes = death()
         self.death_timer = 0
+        self.dying = False
 
     def grace_period(self):
         self.invincible = True
@@ -235,6 +236,7 @@ class Ship(Entity):
                     self.kill()
                     print("L")
                     exit()
+            return
 
     #Override
     def take_damage(self, amount):
@@ -243,6 +245,7 @@ class Ship(Entity):
             if self.health_point <= 0:
                 self.alive = False
                 self.death_timer = pygame.time.get_ticks()
+                self.dying = True
 
 class Enemy(Entity):
     def __init__(self, health_point, speed, points, behavior):
@@ -451,6 +454,122 @@ class Enemy(Entity):
                             projectile_group.add(bullet)
                 
                 self.last_shot = now
+
+
+class Boss(Enemy):
+    def __init__(self, health_point, speed, points):
+        super().__init__(health_point, speed, points, "boss")
+        self.image = boss()[0]
+        self.rect = self.image.get_rect(center=(WIDTH // 2, 100))
+        self.max_phases = 4
+        self.current_phase = 1
+        self.phase_health = health_point  # HP per phase
+        self.health_point = self.phase_health
+        self.last_spiral_shot = 0
+        self.last_aimed_shot = 0
+        self.last_lane_shot = 0
+        self.angle = 0
+        self.spiral_dir = 1
+        self.phase_start_time = 0
+
+    def move_and_shoot(self, projectile_group, player_pos=None):
+        now = pygame.time.get_ticks()
+
+        if self.current_phase == 1:
+            # Phase 1: Horizontal 8-lane bullets
+            if now - self.last_lane_shot > 1000:
+                angles = [-28, -20, -12, -4, 4, 12, 20, 28]  # narrower spacing
+                for angle in angles:
+                    rad = math.radians(angle)
+                    dx = math.sin(rad) * 3
+                    dy = math.cos(rad) * 3
+                    bullet = Projectile(self.rect.centerx, self.rect.bottom,
+                                        enemy_proj()[0], dy, dx, "boss")
+                    projectile_group.add(bullet)
+                self.last_lane_shot = now
+
+        elif self.current_phase == 2:
+            # Phase 2: Spiral
+            # Direction toggle every few seconds
+            if now - self.phase_start_time > 3000:  # toggle every 3 seconds
+                self.spiral_dir *= -1
+                self.phase_start_time = now
+
+            # Spiral bullets
+            if now - self.last_spiral_shot > 100:
+                for i in range(0, 360, 45):
+                    rad = math.radians(i + self.angle)
+                    dx = math.cos(rad) * 3
+                    dy = math.sin(rad) * 3
+                    bullet = Projectile(self.rect.centerx, self.rect.centery,
+                                        enemy_proj()[1], dy, dx, "boss")
+                    projectile_group.add(bullet)
+                self.angle += 15 * self.spiral_dir
+                self.last_spiral_shot = now
+
+
+        elif self.current_phase == 3:
+            # Phase 3: Random aimed
+            if player_pos and now - self.last_aimed_shot > 400:
+                for _ in range(3):
+                    # Choose a random position near the boss
+                    rand_x = self.rect.centerx + random.randint(-100, 100)
+                    rand_y = self.rect.centery + random.randint(-40, 40)
+
+                    # Direction toward player
+                    dx = player_pos[0] - rand_x
+                    dy = player_pos[1] - rand_y
+                    dist = max(1, math.hypot(dx, dy))
+                    dx, dy = dx / dist, dy / dist
+
+                    bullet = Projectile(rand_x, rand_y,
+                                        enemy_proj()[2], dy * 5, dx * 5, "boss")
+                    projectile_group.add(bullet)
+                self.last_aimed_shot = now
+
+
+        elif self.current_phase == 4:
+            # Phase 4: Spiral + Aimed
+            if now - self.last_spiral_shot > 100:
+                for i in range(0, 360, 45):
+                    rad = math.radians(i + self.angle)
+                    dx = math.cos(rad) * 3
+                    dy = math.sin(rad) * 3
+                    bullet = Projectile(self.rect.centerx, self.rect.centery,
+                                        enemy_proj()[1], dy, dx, "boss")
+                    projectile_group.add(bullet)
+                self.angle += 15 * self.spiral_dir
+                self.last_spiral_shot = now
+
+            if player_pos and now - self.last_aimed_shot > 300:
+                for _ in range(2):
+                    dx = player_pos[0] - self.rect.centerx + random.randint(-40, 40)
+                    dy = player_pos[1] - self.rect.centery + random.randint(-40, 40)
+                    distance = max(1, math.hypot(dx, dy))
+                    dx, dy = dx / distance, dy / distance
+                    bullet = Projectile(self.rect.centerx, self.rect.centery,
+                                        enemy_proj()[3], dy * 5, dx * 5, "boss")
+                    projectile_group.add(bullet)
+                self.last_aimed_shot = now
+
+    # Override take_damage to change phase on death
+    def take_damage(self, dmg):
+        if not self.alive:
+            return
+
+        self.health_point -= dmg
+        if self.health_point <= 0:
+            self.current_phase += 1
+            if self.current_phase > self.max_phases:
+                self.alive = False
+                self.kill()
+                print("Boss defeated!")
+            else:
+                self.health_point = self.phase_health
+                print(f"Boss Phase {self.current_phase}")
+                self.last_lane_shot = 0
+                self.last_spiral_shot = 0
+                self.last_aimed_shot = 0
 
 
 class Projectile(pygame.sprite.Sprite):
