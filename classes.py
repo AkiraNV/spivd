@@ -8,7 +8,8 @@ HEIGHT = 640
 MODE = 0
 SOUND = 0
 _BASE_HP = 1
-_BASE_STR = 10
+# _BASE_STR = 10
+_BASE_STR = 50
 _BASE_SPD = 8
 
 #Storage
@@ -21,15 +22,25 @@ def state():
         pygame.image.load("./imgs/ship_shoot3.png").convert_alpha(),
         ]
 
+def sidegun():
+    return [
+        pygame.image.load("./imgs/leftgun.png").convert_alpha(),
+        pygame.image.load("./imgs/rightgun.png").convert_alpha(),
+    ]
+    
+def sidegun_proj():
+    return [
+        pygame.image.load("./imgs/supply05.png").convert_alpha(),
+        pygame.image.load("./imgs/supply06.png").convert_alpha(),
+    ]
+
 def ally_proj():
     return [
         pygame.image.load("./imgs/supply01.png").convert_alpha(),
         pygame.image.load("./imgs/supply02.png").convert_alpha(),
         pygame.image.load("./imgs/supply03.png").convert_alpha(),
         pygame.image.load("./imgs/supply04.png").convert_alpha(),
-        pygame.image.load("./imgs/supply05.png").convert_alpha(),
-        pygame.image.load("./imgs/supply06.png").convert_alpha(),
-        ]
+    ]
 
 def death():
     return [
@@ -88,6 +99,14 @@ def moveset():
         "neutral", "sniper", "spiral", "zigzag", "hover", "crazy"
     ]
 
+def loot():
+    return [
+        pygame.image.load("./imgs/gift.png").convert_alpha(),
+        pygame.image.load("./imgs/power.png").convert_alpha(),
+        pygame.image.load("./imgs/shield.png").convert_alpha(),
+        pygame.image.load("./imgs/bomb.png").convert_alpha(),
+        pygame.image.load("./imgs/food.png").convert_alpha(),
+    ]
 #Classes
 class Entity(pygame.sprite.Sprite):
     def __init__(self, health_point, speed, strength):
@@ -115,10 +134,10 @@ class Ship(Entity):
         #Base stats
         super().__init__(_BASE_HP, _BASE_SPD, _BASE_STR)
         self.grace = 5000
-        self.life = 1
+        self.life = 3
         self.score = 0
         self.bomb = 3
-        self.level = 4
+        self.level = 2
 
         #Shootings
         self.shooting_cd = 70
@@ -146,6 +165,12 @@ class Ship(Entity):
         self.dframes = death()
         self.death_timer = 0
         self.dying = False
+        
+        #Sub-guns
+        sg_img = sidegun()
+        sg_proj = sidegun_proj()
+        self.left_gun = SideGun(-20, sg_img[0], sg_proj[0], owner="Ship", damage_factor=0.5)
+        self.right_gun = SideGun(20, sg_img[1], sg_proj[1], owner="Ship", damage_factor=0.5)
 
     def grace_period(self):
         self.invincible = True
@@ -160,6 +185,8 @@ class Ship(Entity):
                 self.rect.centerx, self.rect.top,
                 img, -10, owner = "Ship")
             projectile_group.add(projectile)
+            self.left_gun.shoot(projectile_group)
+            self.right_gun.shoot(projectile_group)
             self.last_shot = pygame.time.get_ticks()
 
             #Shooting visuals
@@ -204,7 +231,8 @@ class Ship(Entity):
                     self.rect.y += self.speed
                 if self.rect.bottom > HEIGHT:
                     self.rect.bottom = HEIGHT
-            
+            self.left_gun.update(self.rect)
+            self.right_gun.update(self.rect)
             #Shootings
             if self.firing and pygame.time.get_ticks() - self.firing_time > 100:
                 self.image = self.skin[0]
@@ -220,6 +248,10 @@ class Ship(Entity):
                 self.invincible = False
                 self.image = self.skin[0]
         else:
+            self.hitbox.width = 0
+            self.hitbox.height = 0
+            self.hitbox.topleft = (-100, -100)
+            
             tsd = pygame.time.get_ticks() - self.death_timer
             frame_dura = 200
             fridx = tsd // frame_dura
@@ -232,6 +264,10 @@ class Ship(Entity):
                     self.rect.center = (WIDTH // 2, HEIGHT - 50)
                     self.grace_period()
                     self.alive = True
+                    
+                    self.hitbox = pygame.Rect(0,0,10,10)
+                    self.hitbox.centerx = self.rect.centerx
+                    self.hitbox.centery = self.rect.centery + 6
                 else:
                     self.kill()
                     print("L")
@@ -465,6 +501,7 @@ class Boss(Enemy):
         self.current_phase = 1
         self.phase_health = health_point  # HP per phase
         self.health_point = self.phase_health
+        self.max_hp = self.phase_health * self.max_phases
         self.last_spiral_shot = 0
         self.last_aimed_shot = 0
         self.last_lane_shot = 0
@@ -481,8 +518,8 @@ class Boss(Enemy):
                 angles = [-28, -20, -12, -4, 4, 12, 20, 28]  # narrower spacing
                 for angle in angles:
                     rad = math.radians(angle)
-                    dx = math.sin(rad) * 3
-                    dy = math.cos(rad) * 3
+                    dx = math.sin(rad) * 2
+                    dy = math.cos(rad) * 2
                     bullet = Projectile(self.rect.centerx, self.rect.bottom,
                                         enemy_proj()[0], dy, dx, "boss")
                     projectile_group.add(bullet)
@@ -497,7 +534,7 @@ class Boss(Enemy):
 
             # Spiral bullets
             if now - self.last_spiral_shot > 100:
-                for i in range(0, 360, 45):
+                for i in range(0, 360, 60):
                     rad = math.radians(i + self.angle)
                     dx = math.cos(rad) * 3
                     dy = math.sin(rad) * 3
@@ -531,7 +568,7 @@ class Boss(Enemy):
         elif self.current_phase == 4:
             # Phase 4: Spiral + Aimed
             if now - self.last_spiral_shot > 100:
-                for i in range(0, 360, 45):
+                for i in range(0, 360, 60):
                     rad = math.radians(i + self.angle)
                     dx = math.cos(rad) * 3
                     dy = math.sin(rad) * 3
@@ -554,6 +591,7 @@ class Boss(Enemy):
 
     # Override take_damage to change phase on death
     def take_damage(self, dmg):
+        print(f"Boss HP before: {self.health_point}")  # ADD THIS
         if not self.alive:
             return
 
@@ -589,4 +627,41 @@ class Projectile(pygame.sprite.Sprite):
         # Remove if off screen
         if (self.rect.bottom < 0 or self.rect.top > HEIGHT or
             self.rect.right < 0 or self.rect.left > WIDTH):
+            self.kill()
+            
+class SideGun:
+    def __init__(self, x_off, image, bullet_img, owner = "Ship", damage_factor = 0.5):
+        self.x_off = x_off
+        self.image = image
+        self.bullet_img = bullet_img
+        self.owner = owner
+        self.rect = self.image.get_rect()
+        self.damage_factor = damage_factor
+    
+    def update(self, ship_rect):
+        self.rect.centerx = ship_rect.centerx + self.x_off
+        self.rect.centery = ship_rect.centery
+        
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
+    
+    def shoot(self, projectile_group, speed = -10):
+        bullet = Projectile(self.rect.centerx, self.rect.top,
+                            self.bullet_img, speed, owner=self.owner)
+        bullet.damage_factor = self.damage_factor
+        projectile_group.add(bullet)
+        
+
+class Loot(pygame.sprite.Sprite):
+    def __init__(self, x, y, image, loot_type):
+        super().__init__()
+        self.image = image
+        self.rect = self.image.get_rect(center=(x, y))
+        self.mask = pygame.mask.from_surface(self.image)
+        self.timer = pygame.time.get_ticks()
+        self.loot_type = loot_type
+    
+    def update(self):
+        self.rect.y += 1
+        if self.rect.top > HEIGHT:
             self.kill()

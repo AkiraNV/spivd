@@ -16,7 +16,7 @@ try:
     background_image = pygame.image.load('bg2.jpg').convert()
     background_image = pygame.transform.scale(background_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
     
-    font_path = './Orbitron/static/Orbitron-Medium.ttf'
+    font_path = './Bungee-Regular (1).ttf'
     
 except pygame.error as e:
     print(f"Error loading assets: {e}")
@@ -194,6 +194,7 @@ while running:
                                 running = False
                             elif menu_options[i] == "Chơi":
                                 main.start_game()
+                                current_screen = "menu"
                             elif menu_options[i] == "Điểm cao nhất":
                                 current_screen = "high_score"
                             elif menu_options[i] == "Tốc độ":
