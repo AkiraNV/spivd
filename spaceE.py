@@ -200,9 +200,9 @@ class Game:
         self.lives = 3
         self.level = 1
         self.score = 0
-        self.extra_bombs = 0
-        self.num_extra_bombs = 0
-        self.extra_bomb_value = 0
+        self.extra_bombs = 10
+        self.num_extra_bombs = 10
+        self.extra_bomb_value = 10
         self.extra_life = 0
 
         # Clocks

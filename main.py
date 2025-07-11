@@ -1,11 +1,12 @@
 # main.py
 import pygame, classes, random
-from classes import Ship, Enemy, Boss
+from classes import Ship, Enemy, Boss, Loot
+from levels import LEVEL_DATA, spawn_enemies_for_wave, spawn_boss_for_level
 
 
-def draw_bossbar(screen, boss, width=400, height=30):
+def draw_bossbar(screen, boss, width=500, height=20):
     x = (classes.WIDTH - width) // 2
-    y = 20
+    y = 60
 
     if boss.current_phase >= boss.max_phases and boss.health_point <= 0:
         return
@@ -17,31 +18,78 @@ def draw_bossbar(screen, boss, width=400, height=30):
     pygame.draw.rect(screen, (255, 0, 0), (x, y, fill, height))            # health fill
     pygame.draw.rect(screen, (255, 255, 255), (x, y, width, height), 2)    # border
 
+def draw_interface(screen, player, icons, level, wave):
+    bar_height = 60
+    screen_width = classes.WIDTH
+    padding = 10
+    spacing = 26
+    icon_offset_x = 65   # horizontal offset after label
+    icon_offset_y = 2    # vertical tweak to lower the icons slightly
+    font = pygame.font.SysFont("Arial", 20)
+
+    # Background bar
+    pygame.draw.rect(screen, (20, 20, 20), (0, 0, screen_width, bar_height))
+
+    # === Top-left corner ===
+    screen.blit(font.render("Lives:", True, (255, 255, 255)), (padding, padding))
+    for i in range(player.max_life):
+        icon = icons["heart_full"] if i < player.life else icons["heart_empty"]
+        screen.blit(icon, (padding + icon_offset_x + i * spacing, padding + icon_offset_y))
+
+    screen.blit(font.render("Bombs:", True, (255, 255, 255)), (padding, padding + 24))
+    for i in range(min(player.bomb, player.max_bomb)):
+        screen.blit(icons["bomb"], (padding + icon_offset_x + i * spacing, padding + 30))
+
+    # === Top-right corner ===
+    score_text = font.render(f"Score: {player.score}", True, (0, 255, 255))
+    level_text = font.render(f"Level - Wave : {level} - {wave + 1}", True, (0, 200, 255))
+
+    score_rect = score_text.get_rect(topright=(screen_width - padding, padding))
+    level_rect = level_text.get_rect(topright=(screen_width - padding, padding + 20))
+
+    screen.blit(score_text, score_rect)
+    screen.blit(level_text, level_rect)
 
 def start_game():
     pygame.init()
     # pygame.mixer.init() 
-    # pygame.mixer.music.load('n-Dimensions (Main Theme - Retro Ver (mp3cut.net) (1).ogg')
+    # pygame.mixer.music.load('./bgms/background.ogg')
     # pygame.mixer.music.play(-1)  
     screen = pygame.display.set_mode((classes.WIDTH, classes.HEIGHT))
     clock = pygame.time.Clock()
+    icons = classes.icons()
+    
+    current_level = 1
+    current_wave = 0
+    boss_spawned = False
 
     # Create entities
     player: Ship = Ship(classes.state())
-    enemies = [Boss(500, 10, 300)]
-    # enemies = [Enemy(200, 10, 100, 'neutral')]
-    all_sprites = pygame.sprite.Group(player, *enemies)
+    enemies = pygame.sprite.Group()
+    all_sprites = pygame.sprite.Group(player)
     ship_projectiles = pygame.sprite.Group()
+    player.projectile_group_ref = ship_projectiles
+    player.enemy_group_ref = enemies
     enemy_proj = pygame.sprite.Group()
     loot_group = pygame.sprite.Group()
+    
+    spawn_enemies_for_wave(current_level, current_wave, all_sprites, enemies)
+    
+    bomb_button_img = pygame.transform.scale(pygame.image.load("./imgs/bomb.png").convert_alpha(), (48, 48))
+    bomb_button_rect = bomb_button_img.get_rect(topright=(classes.WIDTH - 10, classes.HEIGHT - 60))
+
 
     running = True
     while running:
         clock.tick(60)
+        now = pygame.time.get_ticks()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if (event.button == 1 and bomb_button_rect.collidepoint(event.pos) 
+                    and now - player.last_bomb_time > player.bomb_cd):
+                        player.bombs(enemy_proj, enemies, now)
         # Clear screen
         screen.fill((0, 0, 0))
 
@@ -50,16 +98,38 @@ def start_game():
         all_sprites.draw(screen)
         # pygame.draw.rect(screen, (255, 0, 0), player.hitbox, 1)   #Toggle hitbox
 
-
+        #Enemy spawning logic
+        if not enemies:
+            if not boss_spawned and current_wave + 1 < len(LEVEL_DATA[current_level]['waves']):
+                current_wave += 1
+                spawn_enemies_for_wave(current_level, current_wave, all_sprites, enemies)
+            elif not boss_spawned:
+                if spawn_boss_for_level(current_level, all_sprites, enemies):
+                    boss_spawned = True
+                else:
+                    boss_spawned = True
+            elif boss_spawned:
+                if current_level + 1 in LEVEL_DATA:
+                    current_level += 1
+                    current_wave = 0
+                    boss_spawned = False
+                    enemies.empty()
+                    all_sprites.empty()
+                    all_sprites.add(player)
+                    spawn_enemies_for_wave(current_level, current_wave, all_sprites, enemies)
+                    ship_projectiles.empty()
+                    enemy_proj.empty()
+                else:
+                    running = False
+                    print("Victory!")
 
         #Collisions
         #Ship to enemy
-        hits = pygame.sprite.groupcollide(ship_projectiles, all_sprites, True, False)
+        hits = pygame.sprite.groupcollide(ship_projectiles, enemies, True, False)
         for projectile, hit_list in hits.items():
             for target in hit_list:
                 if isinstance(target, Enemy):
                     damage = getattr(projectile, 'damage_factor', 1.0) * player.strength
-                    print(f"Hit {target.__class__.__name__} for {damage} damage")  # ADD THIS
                     target.take_damage(damage)
 
         #Enemy to ship
@@ -95,19 +165,18 @@ def start_game():
         #Clear dead enemies and spawn loot
         dead_enemies = [e for e in all_sprites if isinstance(e, Enemy) and not e.alive]
         for enemy in dead_enemies:
-            loot_type = random.randint(0, 4)
-            print(f"Loot dropped at ({enemy.rect.centerx}, {enemy.rect.centery})")
-            new_loot = classes.Loot(
-                enemy.rect.centerx,
-                enemy.rect.centery,
-                classes.loot()[loot_type],
-                loot_type
-            )
-            loot_group.add(new_loot)
-            enemy.kill()
+            # Generate loot using Loot class method
+            new_loot_items = Loot.generate_loot(enemy)
+            for new_loot in new_loot_items:
+                print(f"Loot dropped at ({enemy.rect.centerx}, {enemy.rect.centery})")
+                loot_group.add(new_loot)
+            
+            player.score += enemy.points
+
             all_sprites.remove(enemy)
             if enemy in enemies:
                 enemies.remove(enemy)
+            enemy.kill()
         
         loot_group.update()
         loot_group.draw(screen)
@@ -117,33 +186,18 @@ def start_game():
 
         collected = pygame.sprite.spritecollide(player, loot_group, True, collided=player_loot_collision)
         for item in collected:
-            if item.loot_type == 0: #Gift
-                player.score += 100
-                print(f"Score: {player.score}")
-            elif item.loot_type == 1: #Power
-                player.level = min(player.level + 1, 4)
-            elif item.loot_type == 2: #Shield
-                player.invincible = True
-                player.grace_period()
-                print("Shield collected!")
-            elif item.loot_type == 3:  # Bomb
-                player.bomb += 1
-                print(f"Bombs: {player.bomb}")
-            elif item.loot_type == 4:  # Food
-                player.health_point = min(player.health_point + 1, 10)
-                print(f"Health: {player.health_point}")
+            item.effects(player)
 
         #shoot
         keys = pygame.key.get_pressed()
-        if player.alive and keys[pygame.K_SPACE]:
+        if player.alive and keys[pygame.K_SPACE] and not pygame.mouse.get_pressed()[0]:
             player.shoot(ship_projectiles)
+        if player.alive and keys[pygame.K_z] and now - player.last_bomb_time > player.bomb_cd:
+            player.bombs(enemy_proj, enemies, now)
             
         ship_projectiles.update()
         ship_projectiles.draw(screen)
 
-        #Ship proj hb (green)
-        # for proj in ship_projectiles:
-        #     pygame.draw.rect(screen, (0, 255, 0), proj.rect, 1)
 
         player_pos = None
         if player.alive:
@@ -152,22 +206,19 @@ def start_game():
             player.right_gun.draw(screen)
 
         for enemy in enemies:
-            enemy.move_and_shoot(enemy_proj, player_pos)
-
-        enemy_proj.update()
-        enemy_proj.draw(screen)
-
-        #Enemy proj hb
-        for proj in enemy_proj:
-            if hasattr(proj, "mask"):
-                offset = proj.rect.topleft
-                outline = proj.mask.outline()
-                for point in outline:
-                    screen.set_at((point[0] + offset[0], point[1] + offset[1]), (255, 0, 0))
-                    
-        for enemy in enemies:
             if isinstance(enemy, Boss) and enemy.alive:
                 draw_bossbar(screen, enemy)
+                enemy.move_and_shoot(enemy_proj, player_pos)
+            else:
+                enemy.move()
+                enemy.shoot(enemy_proj, player_pos)
+                enemy.check_existence()
+            
+        enemy_proj.update()
+        enemy_proj.draw(screen)
+                
+        screen.blit(bomb_button_img, bomb_button_rect)
+        draw_interface(screen, player, icons, current_level, current_wave)
 
 
         # Flip the screen
