@@ -1,5 +1,5 @@
 import pygame, random, sys
-
+from main import start_game as stg
 movement_mode = ["mode1"]
 # === Screen and Settings ===
 WIDTH, HEIGHT = 720, 640
@@ -158,7 +158,7 @@ alt_background = load_background('./imgs/altmenu.png')
 class Background(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = pygame.image.load("super.png").convert()
+        self.image = pygame.image.load("./imgs/super.png").convert()
         self.image = pygame.transform.scale(self.image, (720, 1080))
         self.rect = self.image.get_rect()
         self.rect2 = self.image.get_rect()
@@ -205,139 +205,6 @@ def draw_text_with_outline(text, font, text_color, outline_color, x, y, outline_
                 screen.blit(outline_surf, (x + dx, y + dy))
     text_surf = font.render(text, True, text_color)
     screen.blit(text_surf, (x, y))
-
-def start_game():
-    import classes
-    from classes import Ship, Enemy
-    screen = pygame.display.set_mode((classes.WIDTH, classes.HEIGHT))
-    clock = pygame.time.Clock()
-
-    bg = Background()
-    all_polygons = pygame.sprite.RenderUpdates()
-    create_polygons(all_polygons)
-    option_scroll = 0
-
-    # player = Ship(classes.state())
-    player = Ship(classes.state(), movement_mode[0])
-    enemies = [Enemy(100, 10, 10, "neutral")]
-    all_sprites = pygame.sprite.Group(player, *enemies)
-    ship_projectiles = pygame.sprite.Group()
-    enemy_proj = pygame.sprite.Group()
-
-    running = True
-    while running:
-        clock.tick(60)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    running = False
-                if event.key == pygame.K_s:
-                    option_scroll = 1 - option_scroll
-                    if option_scroll == 1:
-                        create_polygons(all_polygons)
-
-        if option_scroll == 0:
-            bg.update()
-            screen.blit(bg.image, bg.rect)
-            screen.blit(bg.image, bg.rect2)
-        else:
-            screen.fill(BLACK)
-            all_polygons.update()
-            all_polygons.draw(screen)
-
-        all_sprites.update()
-        all_sprites.draw(screen)
-        pygame.draw.rect(screen, RED, player.hitbox, 1)
-
-        hits = pygame.sprite.groupcollide(ship_projectiles, all_sprites, True, False)
-        for projectile, hit_list in hits.items():
-            for target in hit_list:
-                if isinstance(target, Enemy):
-                    target.take_damage(player.strength)
-
-        def player_hitbox_collision(player, projectile):
-            if not hasattr(projectile, "mask"):
-                return False
-            offset = (player.hitbox.left - projectile.rect.left, player.hitbox.top - projectile.rect.top)
-            player_mask = pygame.Mask(player.hitbox.size, fill=True)
-            return projectile.mask.overlap(player_mask, offset) is not None
-
-        enemy_hits = pygame.sprite.spritecollide(player, enemy_proj, True, collided=player_hitbox_collision)
-        for proj in enemy_hits:
-            if not player.invincible:
-                player.take_damage(enemies[0].strength)
-                if not player.alive:
-                    death_start = pygame.time.get_ticks()
-                    while True:
-                        clock.tick(60)
-                        for e in pygame.event.get():
-                            if e.type == pygame.QUIT:
-                                pygame.quit()
-                                sys.exit()
-
-                        if option_scroll == 0:
-                            bg.update()
-                            screen.blit(bg.image, bg.rect)
-                            screen.blit(bg.image, bg.rect2)
-                        else:
-                            screen.fill(BLACK)
-                            all_polygons.update()
-                            all_polygons.draw(screen)
-
-                        all_sprites.update()
-                        all_sprites.draw(screen)
-                        ship_projectiles.update()
-                        ship_projectiles.draw(screen)
-                        enemy_proj.update()
-                        enemy_proj.draw(screen)
-
-                        pygame.display.flip()
-
-                        # if not player.alive and player not in all_sprites:
-                        if not player.alive:
-                            try:
-                                player_score = getattr(player, "score", 0)
-                            except Exception:
-                                player_score = 0
-                            background_surface = screen.copy()
-                            player_name = input_player_name(screen, font, background_surface)
-                            save_score(player_name, player_score)
-                            # print(f"Đã lưu: {player_name} - {player_score}")
-                            break
-                    return
-
-        def pe_collision(player, enemy):
-            return player.hitbox.colliderect(enemy.rect)
-
-        for sprite in all_sprites:
-            if isinstance(sprite, Enemy) and not sprite.alive:
-                all_sprites.remove(sprite)
-
-        keys = pygame.key.get_pressed()
-        if player.alive and keys[pygame.K_SPACE]:
-            player.shoot(ship_projectiles)
-
-        ship_projectiles.update()
-        ship_projectiles.draw(screen)
-        for proj in ship_projectiles:
-            pygame.draw.rect(screen, GREEN, proj.rect, 1)
-
-        player_pos = (player.rect.centerx, player.rect.centery) if player.alive else None
-        for enemy in enemies:
-            enemy.move_and_shoot(enemy_proj, player_pos)
-
-        enemy_proj.update()
-        enemy_proj.draw(screen)
-        for proj in enemy_proj:
-            if hasattr(proj, "mask"):
-                offset = proj.rect.topleft
-                outline = proj.mask.outline()
-                for point in outline:
-                    screen.set_at((point[0] + offset[0], point[1] + offset[1]), RED)
-
-        pygame.display.flip()
 
 # === Load màn hình ===
 def load_screen(file):
@@ -431,7 +298,7 @@ def run_menu():
                         if rect.collidepoint(mouse_pos):
                             option = menu_options[i]
                             if option == "Chơi":
-                                start_game()
+                                stg()
                             elif option == "Thoát":
                                 running = False
                             elif option == "Điểm cao nhất":
