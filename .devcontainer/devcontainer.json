@@ -7,5 +7,5 @@
             "installGradle": false
         }
     },
-    "postCreateCommand": "sudo apt-get update && sudo apt-get install -y build-essential git python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev zlib1g-dev libjpeg-dev cython"
+    "postCreateCommand": "sudo apt-get update && sudo add-apt-repository universe && sudo add-apt-repository multiverse && sudo apt-get install -y build-essential git python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev zlib1g-dev libjpeg8-dev cython3 autoconf automake libtool"
 }
