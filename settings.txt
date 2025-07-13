@@ -1,0 +1,10 @@
+Âm lượng tổng: 36
+Âm lượng nhạc: 18
+Âm lượng âm thanh: 21
+Di chuyển lên: UP
+Di chuyển xuống: DOWN
+Di chuyển trái: LEFT
+Di chuyển phải: RIGHT
+Bắn: SPACE
+Bom: Z
+Giảm tốc: LEFT SHIFT

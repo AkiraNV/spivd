@@ -2,7 +2,7 @@
 import pygame
 import math
 import random
-from classes import Enemy, Projectile, WIDTH, HEIGHT, enemy_proj
+from classes import Enemy, Projectile, WIDTH, HEIGHT, enemy_proj, HomingProjectile, SFX
 
 class NeutralEnemy(Enemy):
     def __init__(self, hp, speed, points):
@@ -86,7 +86,20 @@ class ZigZagEnemy(Enemy):
                     self.shot = True
 
 
+
 class SpiralEnemy(Enemy):
+    @staticmethod
+    def _calculate_vectors():
+        vectors = []
+        bullet_speed = 4  #Bullet speed
+        for i in range(0, 360, 20):
+            rad = math.radians(i)
+            dx = bullet_speed * math.cos(rad)
+            dy = bullet_speed * math.sin(rad)
+            vectors.append((dx, dy))
+        return vectors
+    PRECALCULATED_VECTORS = _calculate_vectors()
+
     def __init__(self, hp, speed, points):
         super().__init__(hp, speed, points, "spiral")
         self.angle = 0
@@ -97,6 +110,7 @@ class SpiralEnemy(Enemy):
         radius = 50
         self.rect.x = WIDTH // 2 + math.cos(self.angle) * radius
         self.rect.y = 100 + math.sin(self.angle) * radius
+        self.rect.clamp_ip(pygame.Rect(0, 65, WIDTH, HEIGHT))
 
     def shoot(self, projectile_group, player_pos=None):
         now = pygame.time.get_ticks()
@@ -107,54 +121,52 @@ class SpiralEnemy(Enemy):
             self.shoot_start = now
 
         # Fire bullets during the shooting window
-        if now - self.shoot_start < self.shoot_duration * 2:
+        if now - self.shoot_start < self.shoot_duration:
             if now - self.last_bullet_time > self.shoot_cd:
-                for i in range(0, 360, 20):
-                    rad = math.radians(i)
-                    dx = self.bullet_speed * math.cos(rad)
-                    dy = self.bullet_speed * math.sin(rad)
-                    proj = enemy_proj()[2]
+                proj_img = enemy_proj()[2]
+                
+                # Vẫn sử dụng thuộc tính của lớp đã được tính toán sẵn
+                for dx, dy in SpiralEnemy.PRECALCULATED_VECTORS:
                     bullet = Projectile(self.rect.centerx, self.rect.centery,
-                                        proj, dy, dx, owner="enemy")
+                                        proj_img, dy, dx, owner="enemy")
                     projectile_group.add(bullet)
+                
                 self.last_bullet_time = now
 
-
 class CrazyEnemy(Enemy):
-    def __init__(self, hp, speed, points):
+    def __init__(self, hp, speed, points, target = None):
         super().__init__(hp, speed, points, "crazy")
-        self.crazy_counter = 0
+        self.shoot_cd = 2000  # Shoot every 500ms
+        self.last_bullet_time = 0
+        self.target = target  # To store reference to player for homing
 
     def shoot(self, projectile_group, player_pos=None):
         now = pygame.time.get_ticks()
-        self.crazy_counter += 1
-        if self.crazy_counter % 30 == 0:
-            self.rect.x += random.randint(-self.speed * 2, self.speed * 2)
-            self.rect.y += random.randint(-self.speed, self.speed)
-            self.rect.clamp_ip(pygame.Rect(0, 0, WIDTH, HEIGHT // 2))
+        if now - self.last_bullet_time > self.shoot_cd and self.target and self.target.alive:
+            # Shoot homing bullet toward player
+            bullet = HomingProjectile(
+                self.rect.centerx, self.rect.centery,
+                enemy_proj()[4],
+                speed=8,
+                owner="enemy",
+                enemy_group=[self.target]  # No enemy group needed for enemy projectiles
+            )
+            projectile_group.add(bullet)
+            self.last_bullet_time = now
 
-        if now - self.last_shot > self.shoot_interval:
-            self.last_shot = now
-            self.shoot_start = now
-
-        if now - self.shoot_start < self.shoot_duration:
-            if now - self.shoot_start % 100 < 20:
-                pattern = random.choice(["spray", "burst", "targeted"])
-                for _ in range(3 if pattern != "burst" else 5):
-                    angle = random.randint(-45, 45) if pattern != "targeted" else 0
-                    dx = math.sin(math.radians(angle)) * self.bullet_speed
-                    dy = math.cos(math.radians(angle)) * self.bullet_speed
-
-                    if pattern == "targeted" and player_pos:
-                        px, py = player_pos
-                        dx = px - self.rect.centerx + random.randint(-50, 50)
-                        dy = py - self.rect.centery + random.randint(-50, 50)
-                        dist = max(1, math.hypot(dx, dy))
-                        dx /= dist
-                        dy /= dist
-                        dx *= 4
-                        dy *= 4
-
-                    proj = enemy_proj()[random.randint(0, 4)]
-                    bullet = Projectile(self.rect.centerx, self.rect.centery, proj, dy, dx, owner="enemy")
-                    projectile_group.add(bullet)
+    def take_damage(self, damage):
+        # 30% chance to teleport and avoid damage
+        if random.random() < 0.3:
+            # Teleport to a new random position within screen bounds
+            margin = 80
+            self.rect.center = (
+                random.randint(margin, WIDTH - margin),
+                random.randint(margin, HEIGHT // 3)
+            )
+            if SFX:
+                tp_sound = random.choice(["tp1", "tp2"])
+                if tp_sound in SFX:
+                    SFX[tp_sound].play()
+            return  # No damage taken
+        # Otherwise, take damage normally
+        super().take_damage(damage)
