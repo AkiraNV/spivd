@@ -170,7 +170,7 @@ def sfx(volume = 1.0):
     sounds = {
         "life" : pygame.mixer.Sound('./sound/extralife.ogg'),
         "power" : pygame.mixer.Sound('./sound/vie.ogg'),
-        "boss_approach" : pygame.mixer.Sound('./sound/alert_attack.ogg'),
+        "phase_change" : pygame.mixer.Sound('./sound/alert_attack.ogg'),
         "select" : pygame.mixer.Sound('./sound/spring.ogg'),
         "upgrade1" : pygame.mixer.Sound('./sound/level_up1.mp3'),
         "upgrade2" : pygame.mixer.Sound('./sound/level_up2.mp3'),
@@ -874,7 +874,7 @@ class Boss(Enemy):
                 if self.current_phase > self.max_phases:
                     self.alive = False
                 else:
-                    SFX["bomb_use"].play()
+                    SFX["phase_change"].play()
                     self.health_point = self.phase_health
 
 class Projectile(pygame.sprite.Sprite):
