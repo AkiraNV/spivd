@@ -21,7 +21,7 @@
 import pygame, sys, random, os, datetime, math
 from pygame.locals import *
 from platform import system
-from menu import slidemenu
+from main import slidemenu
 from generic import generic
 from include import mycolors
 from include import words

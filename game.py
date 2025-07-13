@@ -2,7 +2,7 @@
 import pygame, classes, random
 from classes import Ship, Enemy, Loot, Boss, SFX, load_bgm, BGM, bgm_vol
 from levels import LEVEL_DATA, spawn_enemies_for_wave, spawn_boss_for_level
-from menu import save_score, input_player_name
+from main import save_score, input_player_name
 from settings import load_txt_settings
 
 settings = load_txt_settings()
